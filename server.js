@@ -1,37 +1,57 @@
 const TelegramBot = require('node-telegram-bot-api');
-const express = require('express');
-const app = express();
 
-// Твой токен бота (получи у @BotFather)
-const token = process.env.BOT_TOKEN || '8115320266:AAF3E2mPfpcAaAUBHMn8MS20ES1nNMCw010';
-const bot = new TelegramBot(token, { polling: false });
+// Твой токен бота из Environment Variables
+const token = process.env.BOT_TOKEN;
 
-// Вебхук для Render
-const WEBHOOK_URL = process.env.RENDER_EXTERNAL_URL + '/webhook';
-bot.setWebHook(WEBHOOK_URL);
+// Используем polling вместо вебхука
+const bot = new TelegramBot(token, { 
+  polling: true,
+  // Дополнительные опции для стабильности
+  polling: {
+    interval: 300,
+    autoStart: true
+  }
+});
 
 // Обработчик команды /start
 bot.onText(/\/start/, (msg) => {
   const chatId = msg.chat.id;
   const userName = msg.from.first_name || 'Пользователь';
   
+  console.log(`Пользователь ${userName} (${chatId}) авторизовался`);
+  
   bot.sendMessage(
     chatId, 
-    `✅ Здравствуйте, ${userName}!\n\nАвторизация на сайте прошла успешно!\n\nТеперь вы можете вернуться на сайт и заполнить форму.`
+    `✅ Привет, ${userName}!\n\nАвторизация на сайте прошла успешно!\n\nТеперь ты можешь вернуться на сайт и заполнять формы.`
   );
 });
 
-// Обработчик вебхука
-app.post('/webhook', (req, res) => {
-  bot.processUpdate(req.body);
-  res.sendStatus(200);
+// Обработчик команды /help
+bot.onText(/\/help/, (msg) => {
+  bot.sendMessage(
+    msg.chat.id,
+    `🤖 Команды бота:\n/start - Авторизация на сайте\n/help - Помощь`
+  );
 });
 
-app.use(express.json());
-
-// Старт сервера
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Bot server running on port ${PORT}`);
-  console.log(`Webhook URL: ${WEBHOOK_URL}`);
+// Обработчик всех сообщений (если не команда)
+bot.on('message', (msg) => {
+  if (!msg.text.startsWith('/')) {
+    bot.sendMessage(
+      msg.chat.id, 
+      'Отправь /start для авторизации на сайте'
+    );
+  }
 });
+
+// Логирование ошибок
+bot.on('error', (error) => {
+  console.error('Ошибка бота:', error);
+});
+
+bot.on('polling_error', (error) => {
+  console.error('Ошибка polling:', error);
+});
+
+console.log('🤖 Бот запущен и готов к работе...');
+console.log('Используется polling, вебхук не нужен');
